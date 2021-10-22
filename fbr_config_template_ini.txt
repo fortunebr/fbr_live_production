@@ -1,0 +1,9 @@
+[SQL SERVER]
+SERVER = server name
+DATABASE = database name
+UID = userid
+PWD = password
+
+[WEBHOOK]
+DISCORD = discord webhook url
+GOOGLE = google webhook url
