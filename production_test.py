@@ -8,6 +8,7 @@ import pickle
 import requests
 import pyodbc
 
+
 def logMessage(msg) -> None:
     """Program execution failure/exception logging"""
 
@@ -216,11 +217,11 @@ def main() -> None:
 
         discord_url = wh.get("DISCORD", "")
         webhook_discord(
-            url=discord_url, production=cur_production, date=now, history=hourlyLogDisplay(prod_log), fg_prod=cur_fgproduction
+            url="", production=cur_production, date=now, history=hourlyLogDisplay(prod_log), fg_prod=cur_fgproduction
         )
         google_url = wh.get("GOOGLE", "")
         webhook_google(
-            url=google_url, production=cur_production, date=now, history=hourlyLogDisplay2(prod_log), fg_prod=cur_fgproduction
+            url="", production=cur_production, date=now, history=hourlyLogDisplay2(prod_log), fg_prod=cur_fgproduction
         )
 
 
