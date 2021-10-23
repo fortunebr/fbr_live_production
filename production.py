@@ -32,10 +32,12 @@ def load_configuration():
                 rf'pwd={config["SQL Server"]["PWD"]};'
                 r"Integrated Security=false;"
             )
-            if config.has_option("WEBOHOOK", "DISCORD"):
-                wh["DISCORD"] = config.get("WEBOHOOK", "DISCORD")
-            if config.has_option("WEBOHOOK", "GOOGLE"):
-                wh["GOOGLE"] = config.get("WEBOHOOK", "GOOGLE")
+            if config.has_option("WEBHOOK", "DISCORD"):
+                wh["DISCORD"] = config.get("WEBHOOK", "DISCORD")
+            if config.has_option("WEBHOOK", "GOOGLE"):
+                wh["GOOGLE"] = config.get("WEBHOOK", "GOOGLE")
+            else:
+                logMessage("Webhook url not found.")
             return connection_str, wh
         except KeyError as e:
             print(f'Required key "{e.args[0]}" not found in configurations.')
@@ -71,18 +73,17 @@ def webhook_discord(production, date, history, fg_prod=None,url="") -> None:
     }
     try:
         res = requests.post(url, json=embed)
-        if res.status_code != 400:
+        if res.status_code == 400:
             logMessage(f"Discord request failed: #{res.status_code}")
     except Exception as e:
         logMessage(f"Failed to send to discord webhook\n{e}")
 
 
-def webhook_google(production, date, history, fg_prod,url=""):
+def webhook_google(production, date, history, fg_prod, url=""):
     """Google webhook execution"""
 
     if not url or not url.startswith("https"):
-        url = "https://chat.googleapis.com/v1/spaces/AAAAkkgKKdY/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=VFQoL9u_SjlMQDBwmWdFYOp1LTP914sn-7uwMGQVTNY%3D"
-    
+        return
     time = date.strftime('%I:%M %p')
 
     # formatted_datettime = prod_date.strftime("%b %d, %Y - %I:%M:%S %p")
