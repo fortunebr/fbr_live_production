@@ -2,7 +2,6 @@ from typing import Tuple
 
 import configparser
 import datetime
-import os
 import pickle
 import random
 
@@ -18,20 +17,16 @@ class Production:
         self.phour = phour
 
     @property
-    def hour(self) -> int:
-        return self.time.hour
-
-    @property
-    def day(self) -> int:
-        return self.time.day
-
-    @property
     def hour_string(self) -> str:
         return f"{self.time.hour - 1:02d}-{self.time.hour:02d}"
 
     @property
     def date_string(self):
         return self.time.strftime("%b %d, %Y  %I:%M %p")
+
+    @property
+    def time_string(self):
+        return self.time.strftime('%I:%M %p')
 
 
 def getClockImage(hour: int) -> str:
@@ -63,7 +58,7 @@ def getClockImage(hour: int) -> str:
         case   12 | 0:
             return "https://i.imgur.com/oqb1oQz.png"
         case _:
-            return "https://listimg.pinclipart.com/picdir/s/195-1954098_24-hour-clock-spiral-free-printable-template-download.png"
+            return "https://i.imgur.com/lkwPtdD.jpg"
 
 
 def randomColor() -> int:
@@ -94,7 +89,7 @@ def randomColor() -> int:
 def logMessage(msg) -> None:
     """Program execution failure/exception logging"""
 
-    with open(os.getcwd() + "/fbr_plog.txt", "a+") as f:
+    with open("fbr_plog.txt", "a+") as f:
         f.write(f"{datetime.datetime.now()}  {msg}\n")
 
 
@@ -122,15 +117,12 @@ def load_configuration():
                 logMessage("Webhook url not found.")
             return connection_str, wh
         except KeyError as e:
-            print(f'Required key "{e.args[0]}" not found in configurations.')
             logMessage(
                 f'Required key "{e.args[0]}" not found in configurations.')
 
         except Exception as e:
-            print(f"Unknown exception occured\n{e}")
             logMessage(f"Unknown exception occured.\n{e}")
     else:
-        print("Configuration file missing.")
         logMessage("Configuration file missing.")
         return None, wh
 
@@ -138,31 +130,33 @@ def load_configuration():
 def webhook_discord(embed: dict, url=None) -> None:
     """Discrod webhook execution"""
 
-    if not url or not url.startswith("https"):
+    if not url or not url.startswith("https://discordapp.com/api/webhooks/"):
         url = "https://discordapp.com/api/webhooks/897150490536718398/_ay4C-asZPGNa6TFnTVBT-IrqlJUlafC4Y4pld2y6O8NL2x5sr69CWb1ezIPEVc6Sy1d"
 
     try:
         res = requests.post(url, json=embed)
-        if res.status_code == 400:
+        if res.status_code >= 400:
             logMessage(f"Discord request failed: #{res.status_code}")
     except Exception as e:
         logMessage(f"Failed to send to discord webhook\n{e}")
 
 
-def webhook_google(production, date, history, fg_prod, url=""):
+def webhook_google(prod: Production, data: dict[datetime.datetime, Production], url=None) -> None:
     """Google webhook execution"""
 
     if not url or not url.startswith("https"):
         return
-    time = date.strftime('%I:%M %p')
 
-    # formatted_datettime = prod_date.strftime("%b %d, %Y - %I:%M:%S %p")
+    data_string = ""
+    for p in data.values():
+        data_string += f"{p.hour_string}: {p.phour}\n"
+
     text_message = {
-        "text": f"*{production} prs*  |  *{fg_prod} cs*  _- {time}_\n```\nHourly\n{history}```"
+        "text": f"*{prod.achieved} prs*  |  *{prod.fg} cs*  _- {prod.time_string}_\n```\nHourly\n{data_string}```"
     }
     try:
         res = requests.post(url, json=text_message)
-        if res.status_code != 200:
+        if res.status_code >= 400:
             logMessage(f"Google request failed: #{res.status_code}")
     except Exception as e:
         logMessage(f"Failed to send to google webhook\n{e}")
@@ -195,7 +189,7 @@ def getHourlyProductionLog() -> dict[datetime.datetime, Production]:
     hourly_log = {}
 
     try:
-        with open(os.getcwd() + "/production.pickle", "rb") as f:
+        with open("production.pickle", "rb") as f:
             hourly_log = pickle.load(f)
     except FileNotFoundError or EOFError:
         pass
@@ -205,11 +199,11 @@ def getHourlyProductionLog() -> dict[datetime.datetime, Production]:
     return hourly_log
 
 
-def saveHourlyProductionLog(data) -> None:
+def saveHourlyProductionLog(data: dict) -> None:
     """Saves the current latest log in the file"""
 
     try:
-        with open(os.getcwd() + "/production.pickle", "w+b") as f:
+        with open("production.pickle", "w+b") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
     except Exception as e:
         logMessage(f"Failed to save current production log. \n{e}")
@@ -230,21 +224,22 @@ def discord_embed_h(prod: Production, data: dict[datetime.datetime, Production])
                 "fields": [
                     {
                         "name": "Achieved",
-                        "value": f"{prod.production} pairs | {prod.fg} cs",
+                        "value": f"**{prod.production}** pairs | **{prod.fg}** cs",
                     },
                     {
                         "name": "Last Hour",
-                        "value": f"{prod.phour} pairs",
+                        "value": f"**{prod.phour}** pairs",
                         "inline": True
                     },
                     {
                         "name": "Average",
-                        "value": f"{average_hprod} pairs/hour",
+                        "value": f"**{average_hprod}** pairs/hour",
                         "inline": True
                     },
                 ],
+                "timestamp": f"{prod.time.utcnow()}",
                 "footer": {
-                    "text": f"{prod.date_string}",
+                    "text": "Fortune Br",
                     "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
                 },
             }
@@ -262,7 +257,7 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
         data_string += f"{p.hour_string}  :  {p.achieved}"
         data_string += " " * (8 - len(str(p.achieved)))
         data_string += f"+{p.phour}\n"
-    data_string + "```"
+    data_string += "```"
     productions = list(data.values())
     productions.sort(key=lambda x: x.phour)
 
@@ -296,32 +291,27 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
                         "value": data_string
                     },
                 ],
-                "timestamp": f"{prod.time.utcnow()}",
                 "footer": {
                     "text": "Fortune Br",
                     "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
                 },
+                "timestamp": f"{prod.time.utcnow()}",
             }
         ]
     }
     return embed
 
 
-def google_text_h(data) -> str:
-    """For displaying hourly log"""
+def main(now: datetime.datetime = datetime.datetime.now()) -> None:
+    """Connect to SQL Server and execute the query to count rows.
 
-    data_string = ""
-    for key, item in data.items():
-        data_string += f"{key-1:02d}-{key:02d}: {item[1]}\n"
-    return data_string
+    * Total number of queries to run: 3
+    * Send results to Discord/Google webhook
+    """
 
-
-def main() -> None:
-    """Main program"""
-    now = datetime.datetime.now()
+    con_str, wh = load_configuration()
     query = "select count(*) from [barcode].[dbo].[tbl_ProductionScan] where [prod_date] between ? and ?"
     query_fg = "select count(*) from [barcode].[dbo].[tbl_StorageScan] where [store_date] between ? and ?"
-    con_str, wh = load_configuration()
 
     if not con_str:
         return
@@ -349,23 +339,24 @@ def main() -> None:
         prod_log = getHourlyProductionLog()
         max_time = max(list(prod_log.keys()))
         min_time = min(list(prod_log.keys()))
-        if ((max_time.hour <= 23 and min_time.date != now.date)
-                or (min_time.date <= (now.date - datetime.timedelta(days=2)))):
+        if ((max_time.hour <= 23 and min_time.date() != now.date())
+                or (min_time.date() <= (now.date() - datetime.timedelta(days=2)))):
             prod_log = {}
 
     prod_now = Production(time=now)
-
+    # Query execution
     try:
+        # Current hour production
         qresult_hour = cursor.execute(
-            query, hourly_sdate, hourly_edate)  # hour based
+            query, hourly_sdate, hourly_edate)
         prod_now.phour = qresult_hour.fetchone()[0]
-
+        # Production upto this hour
         qresult_cur = cursor.execute(
-            query, start_date, hourly_edate)  # 8 - cur_hour
+            query, start_date, hourly_edate)
         prod_now.achieved = qresult_cur.fetchone()[0]
-
+        # FG production upto this hour
         qresult_fg = cursor.execute(
-            query_fg, start_date, hourly_edate)  # 8 - 8
+            query_fg, start_date, hourly_edate)
         prod_now.fg = qresult_fg.fetchone()[0]
 
         prod_log[now] = prod_now
@@ -374,20 +365,30 @@ def main() -> None:
     except Exception as e:
         logMessage(f"Query execution failed.\n{e}")
 
-    if prod_now.phour > 0 and prod_now.achieved > 0 and prod_log:
+    if prod_now.achieved > 100 and prod_log:
         # Send to webhooks
+        if prod_now.phour > 100:
+            # Hourly report
+            embed = discord_embed_h(prod=prod_now, data=prod_log)
+            webhook_discord(embed=embed, url=wh.get("DISCORD", None))
 
-        embed = discord_embed_h(prod=prod_now, data=prod_log)
-        webhook_discord(embed=embed, url=wh.get("DISCORD", ""))
-
-        # webhook_google(url=wh.get("GOOGLE", ""), production=cur_production, date=now, history=hourlyLogDisplay2(prod_log), fg_prod=cur_fgproduction)
+            if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
+                # If not sunday, send to google webhook
+                webhook_google(prod=prod_now, data=prod_log,
+                               url=wh.get("GOOGLE", None))
+        if now.hour == 8:
+            # Day summary
+            embed = discord_embed_summary(prod=prod_now, data=prod_log)
+            webhook_discord(embed=embed, url=wh.get("DISCORD_DAILY", None))
 
 
 if __name__ == "__main__":
     now = datetime.datetime.now()
+    main(now)
 
-    if now.weekday() == 6 and now.time() > datetime.time(8, 15):
-        # Sunday is holiday
-        pass
-    else:
-        main()
+# Sunday is not always holiday for plant,
+    # if now.weekday() == 6 and now.time() > datetime.time(8, 15):
+    #     # Sunday is holiday
+    #     pass
+    # else:
+    #     main(now)
