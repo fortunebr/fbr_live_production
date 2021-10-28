@@ -19,7 +19,9 @@ class Production:
 
     @property
     def hour_string(self) -> str:
-        return f"{self.time.hour - 1:02d}-{self.time.hour:02d}"
+        from_hour = (self.time - datetime.timedelta(hours=1)).hour
+        to_hour = self.time.hour
+        return f"{from_hour:02d}-{to_hour:02d}"
 
     @property
     def date_string(self):
@@ -334,17 +336,16 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
         logMessage(f"Connection to server failed.\n{e}")
 
     start_date, end_date = getDailyProductionDate(now)
-    now_hour = now.time().hour
-    hourly_sdate = now.replace(
-        hour=now_hour - 1, minute=0, second=0, microsecond=0)
-    hourly_edate = now.replace(minute=0, second=0, microsecond=0)
 
-    if now_hour == 9:
+    hourly_edate = now.replace(minute=0, second=0, microsecond=0)
+    hourly_sdate = hourly_edate - datetime.timedelta(hours=1)
+
+    if now.hour == 9:
         prod_log = {}
     else:
         prod_log = getHourlyProductionLog()
         if len(prod_log) > 0:
-            min_time = min(list(prod_log.keys()))
+            min_time = min(prod_log.keys())
             if (now.date() != min_time.date()):
                 if now.hour > 8 or (min_time.date() < now.date() - datetime.timedelta(days=1)):
                     prod_log = {}
