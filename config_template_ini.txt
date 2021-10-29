@@ -1,4 +1,4 @@
-[SQL SERVER]
+[SQL Server]
 SERVER = server name
 DATABASE = database name
 UID = userid
@@ -6,4 +6,5 @@ PWD = password
 
 [WEBHOOK]
 DISCORD = discord webhook url
+DISCORD_DAILY = discord wh url for day summary
 GOOGLE = google webhook url
