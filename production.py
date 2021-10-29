@@ -10,6 +10,7 @@ import pyodbc
 
 root = "C:/fbr_production/"
 
+
 class Production:
     def __init__(self, time=datetime.datetime.now(), achieved=0, fg=0, phour=0):
         self.time: datetime.datetime = time
@@ -140,7 +141,7 @@ def webhook_discord(embed: dict, url=None) -> None:
     """Discrod webhook execution"""
 
     if not url or not url.startswith("https://discord"):
-        url = "https://discordapp.com/api/webhooks/897150490536718398/_ay4C-asZPGNa6TFnTVBT-IrqlJUlafC4Y4pld2y6O8NL2x5sr69CWb1ezIPEVc6Sy1d"
+        return
     try:
         res = requests.post(url, json=embed)
         if res.status_code >= 400:
@@ -354,9 +355,8 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
                 if now.hour > 8 or (min_time.date() < now.date() - datetime.timedelta(days=1)):
                     prod_log = {}
             else:
-                if min_time.hour <=8 and now.hour > 8:
+                if min_time.hour <= 8 and now.hour > 8:
                     prod_log = {}
-
 
     prod_now = Production(time=now)
     # Query execution
@@ -392,11 +392,12 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
                 if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                     # If not sunday, send to google webhook
                     webhook_google(prod=prod_now, data=prod_log,
-                                url=wh.get("GOOGLE", None))
+                                   url=wh.get("GOOGLE", None))
         if now.hour == 8:
             # Day summary
             embed = discord_embed_summary(prod=prod_now, data=prod_log)
             webhook_discord(embed=embed, url=wh.get("DISCORD_DAILY", None))
+
 
 if __name__ == "__main__":
     now = datetime.datetime.now()
