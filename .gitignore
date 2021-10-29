@@ -1,4 +1,7 @@
 /env/*
 /__pycache__*
-*.ini
-*.pickle
+*.pickle 
+.vscode 
+
+# Configuration file
+config.ini 
