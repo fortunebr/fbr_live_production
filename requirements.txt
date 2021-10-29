@@ -1,3 +1,2 @@
-httplib2
 pyodbc
 requests
