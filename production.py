@@ -118,6 +118,8 @@ def load_configuration():
             )
             if config.has_option("WEBHOOK", "DISCORD"):
                 wh["DISCORD"] = config.get("WEBHOOK", "DISCORD")
+            if config.has_option("WEBHOOK", "DISCORD_DAILY"):
+                wh["DISCORD_DAILY"] = config.get("WEBHOOK", "DISCORD_DAILY")
             if config.has_option("WEBHOOK", "GOOGLE"):
                 wh["GOOGLE"] = config.get("WEBHOOK", "GOOGLE")
             else:
@@ -266,15 +268,17 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
         data_string += " " * (8 - len(str(p.achieved)))
         data_string += f"+{p.phour}\n"
     data_string += "```"
-    productions = list(data.values())
-    productions.sort(key=lambda x: x.phour)
+    highest_prod = max(data.values(), key=lambda p: p.phour)
+    first_prod = min(data.values(), key=lambda p: p.time)
+    # productions = list(data.values()) # Sort for getting top5, last5
+    # productions.sort(key=lambda x: x.phour)
 
     embed = {
         "embeds": [
             {
                 "color": f"{randomColor()}",
                 "author": {
-                    "name": f"{productions[0].time.strftime('%A - %b %d, %Y')}"
+                    "name": f"{first_prod.time.strftime('%A - %b %d, %Y')}"
                 },
                 "thumbnail": {
                     "url": "https://i.imgur.com/e22h9tf.png",
@@ -286,7 +290,7 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
                     },
                     {
                         "name": "Highest (per hour)",
-                        "value": f"**{productions[-1].phour}** pairs\n{productions[-1].hour_string}",
+                        "value": f"**{highest_prod.phour}** pairs\n{highest_prod.hour_string}",
                         "inline": True
                     },
                     {
@@ -393,7 +397,6 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
             # Day summary
             embed = discord_embed_summary(prod=prod_now, data=prod_log)
             webhook_discord(embed=embed, url=wh.get("DISCORD_DAILY", None))
-
 
 if __name__ == "__main__":
     now = datetime.datetime.now()
