@@ -1,3 +1,6 @@
+"""Made with ❤️ from kalaLokia"""
+
+
 from typing import Tuple
 
 import configparser
@@ -5,19 +8,26 @@ import datetime
 import pickle
 import random
 
-import requests
 import pyodbc
+import requests
 
 
 root = "C:/fbr_production/"
 
 
 class Production:
-    def __init__(self, time=datetime.datetime.now(), achieved=0, fg=0, phour=0):
+    """Model for storing hourly production details."""
+
+    def __init__(self, time=datetime.datetime.now(), achieved:int=0, fg:int=0, phour:int=0):
+
         self.time: datetime.datetime = time
-        self.achieved = achieved
-        self.fg = fg
-        self.phour = phour
+        """Current hour datetime object."""
+        self.achieved:int = achieved
+        """Production achieved upto this hour."""
+        self.fg:int = fg
+        """FG Production upto this hour."""
+        self.phour:int = phour
+        """Production on this hour."""
 
     @property
     def hour_string(self) -> str:
@@ -35,7 +45,7 @@ class Production:
 
 
 def getClockImage(hour: int) -> str:
-    """Returns a clock image url"""
+    """Returns a clock image url for the given hour."""
 
     match hour:
         case  1 | 13:
@@ -193,7 +203,7 @@ def getDailyProductionDate(cur_datetime) -> Tuple[datetime.datetime]:
     return (start_date, end_date)
 
 
-def getHourlyProductionLog() -> dict[datetime.datetime, Production]:
+def loadHourlyProductionLog() -> dict[datetime.datetime, Production]:
     """Get hourly logging from previously saved local file"""
 
     global root
@@ -261,7 +271,7 @@ def discord_embed_h(prod: Production, data: dict[datetime.datetime, Production])
 
 
 def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Production]) -> dict:
-    """Discord embed for displaying hourly"""
+    """Discord embed for displaying day summary"""
 
     average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
     data_string = "```\n"
@@ -349,7 +359,7 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
     if now.hour == 9:
         prod_log = {}
     else:
-        prod_log = getHourlyProductionLog()
+        prod_log = loadHourlyProductionLog()
         if len(prod_log) > 0:
             min_time = min(prod_log.keys())
             if (now.date() != min_time.date()):
@@ -402,13 +412,9 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
 
 if __name__ == "__main__":
     now = datetime.datetime.now()
+
+    # ToDo: Remove try-catch expression here
     try:
         main(now)
     except Exception as e:
         logMessage(f"Main program execution failed.\n{e}")
-# Sunday is not always holiday for plant,
-    # if now.weekday() == 6 and now.time() > datetime.time(8, 15):
-    #     # Sunday is holiday
-    #     pass
-    # else:
-    #     main(now)
