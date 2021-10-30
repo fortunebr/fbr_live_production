@@ -359,7 +359,7 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
                 if min_time.hour <= 8 and now.hour > 8:
                     prod_log = {}
 
-    prod_now = Production(time=now)
+    prod_now = Production(time=hourly_edate)
     # Query execution
     try:
         # Current hour production
