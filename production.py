@@ -18,15 +18,21 @@ root = "C:/fbr_production/"
 class Production:
     """Model for storing hourly production details."""
 
-    def __init__(self, time=datetime.datetime.now(), achieved:int=0, fg:int=0, phour:int=0):
+    def __init__(
+        self,
+        time=datetime.datetime.now(),
+        achieved: int = 0,
+        fg: int = 0,
+        phour: int = 0,
+    ):
 
         self.time: datetime.datetime = time
         """Current hour datetime object."""
-        self.achieved:int = achieved
+        self.achieved: int = achieved
         """Production achieved upto this hour."""
-        self.fg:int = fg
+        self.fg: int = fg
         """FG Production upto this hour."""
-        self.phour:int = phour
+        self.phour: int = phour
         """Production on this hour."""
 
     @property
@@ -41,7 +47,7 @@ class Production:
 
     @property
     def time_string(self):
-        return self.time.strftime('%I:%M %p')
+        return self.time.strftime("%I:%M %p")
 
 
 def getClockImage(hour: int) -> str:
@@ -50,29 +56,29 @@ def getClockImage(hour: int) -> str:
     match hour:
         case  1 | 13:
             return "https://i.imgur.com/QXIxBcr.png"
-        case   2 | 14:
+        case  2 | 14:
             return "https://i.imgur.com/sO7GiQh.png"
-        case   3 | 15:
+        case  3 | 15:
             return "https://i.imgur.com/FmZrupJ.png"
-        case   4 | 16:
+        case  4 | 16:
             return "https://i.imgur.com/zNeOJSL.png"
-        case   5 | 17:
+        case  5 | 17:
             return "https://i.imgur.com/S4UPkPd.png"
-        case   6 | 18:
+        case  6 | 18:
             return "https://i.imgur.com/lC2E845.png"
-        case   7 | 19:
+        case  7 | 19:
             return "https://i.imgur.com/wcj8ESf.png"
-        case   8 | 20:
+        case  8 | 20:
             return "https://i.imgur.com/GVsFAgG.png"
-        case   9 | 21:
+        case  9 | 21:
             return "https://i.imgur.com/SPHh9BK.png"
-        case   10 | 22:
+        case  10 | 22:
             return "https://i.imgur.com/rQDK31v.png"
-        case   11 | 23:
+        case  11 | 23:
             return "https://i.imgur.com/e8WYgmU.png"
-        case   12 | 0:
+        case  12 | 0:
             return "https://i.imgur.com/oqb1oQz.png"
-        case _:
+        case  _:
             return "https://i.imgur.com/lkwPtdD.jpg"
 
 
@@ -132,10 +138,14 @@ def load_configuration():
                 wh["DISCORD"] = config.get("WEBHOOK", "DISCORD")
             if config.has_option("WEBHOOK", "DISCORD_DAILY"):
                 wh["DISCORD_DAILY"] = config.get("WEBHOOK", "DISCORD_DAILY")
+            if config.has_option("WEBHOOK", "SLACK"):
+                wh["SLACK"] = config.get("WEBHOOK", "SLACK")
             if config.has_option("WEBHOOK", "GOOGLE"):
                 wh["GOOGLE"] = config.get("WEBHOOK", "GOOGLE")
-            else:
-                logMessage("Google webhook url not found.")
+
+            if not wh.keys():
+                logMessage("Cannot find a webhook to send report to!")
+
             return connection_str, wh
         except KeyError as e:
             logMessage(
@@ -161,7 +171,22 @@ def webhook_discord(embed: dict, url=None) -> None:
         logMessage(f"Failed to send to discord webhook\n{e}")
 
 
-def webhook_google(prod: Production, data: dict[datetime.datetime, Production], url=None) -> None:
+def webhook_slack(block: dict, url=None) -> None:
+    """Slack webhook execution"""
+
+    if not url or not url.startswith("https://hooks.slack.com/services/"):
+        return
+    try:
+        res = requests.post(url, json=block)
+        if res.status_code >= 400:
+            logMessage(f"Slack request failed: #{res.status_code}")
+    except Exception as e:
+        logMessage(f"Failed to send to slack webhook\n{e}")
+
+
+def webhook_google(
+    prod: Production, data: dict[datetime.datetime, Production], url=None
+) -> None:
     """Google webhook execution"""
 
     if not url or not url.startswith("https://chat.googleapis.com"):
@@ -231,7 +256,9 @@ def saveHourlyProductionLog(data: dict) -> None:
         logMessage(f"Failed to save current production log. \n{e}")
 
 
-def discord_embed_h(prod: Production, data: dict[datetime.datetime, Production]) -> dict:
+def discord_embed_hourly(
+    prod: Production, data: dict[datetime.datetime, Production]
+) -> dict:
     """Discord embed for displaying hourly"""
 
     average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
@@ -251,18 +278,18 @@ def discord_embed_h(prod: Production, data: dict[datetime.datetime, Production])
                     {
                         "name": "Last Hour",
                         "value": f"**{prod.phour}** pairs",
-                        "inline": True
+                        "inline": True,
                     },
                     {
                         "name": "Average",
                         "value": f"**{average_hprod}** pairs/hour",
-                        "inline": True
+                        "inline": True,
                     },
                 ],
                 "timestamp": f"{prod.time.utcnow()}",
                 "footer": {
                     "text": "Fortune Br",
-                    "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
+                    # "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
                 },
             }
         ]
@@ -270,8 +297,12 @@ def discord_embed_h(prod: Production, data: dict[datetime.datetime, Production])
     return embed
 
 
-def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Production]) -> dict:
+def discord_embed_summary(
+    prod: Production, data: dict[datetime.datetime, Production]
+) -> dict:
     """Discord embed for displaying day summary"""
+
+    # ToDo: Centralize these calculation to one place @also in slack
 
     average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
     data_string = "```\n"
@@ -289,9 +320,7 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
         "embeds": [
             {
                 "color": f"{randomColor()}",
-                "author": {
-                    "name": f"{first_prod.time.strftime('%A - %b %d, %Y')}"
-                },
+                "author": {"name": f"{first_prod.time.strftime('%A - %b %d, %Y')}"},
                 "thumbnail": {
                     "url": "https://i.imgur.com/e22h9tf.png",
                 },
@@ -303,27 +332,125 @@ def discord_embed_summary(prod: Production, data: dict[datetime.datetime, Produc
                     {
                         "name": "Highest (per hour)",
                         "value": f"**{highest_prod.phour}** pairs\n{highest_prod.hour_string}",
-                        "inline": True
+                        "inline": True,
                     },
                     {
                         "name": "Average",
                         "value": f"**{average_hprod}** pairs/hour",
-                        "inline": True
+                        "inline": True,
                     },
-                    {
-                        "name": "Report",
-                        "value": data_string
-                    },
+                    {"name": "Report", "value": data_string},
                 ],
                 "footer": {
                     "text": "Fortune Br",
-                    "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
+                    # "icon_url": "https://i.imgur.com/7SwrwqC.jpg",
                 },
                 "timestamp": f"{prod.time.utcnow()}",
             }
         ]
     }
     return embed
+
+
+def slack_block_hourly(
+    prod: Production, data: dict[datetime.datetime, Production]
+) -> dict:
+    """Slack block for displaying hourly"""
+
+    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
+
+    block = {
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Achieved\n*{prod.achieved}* _pairs_ | *{prod.fg}* _cs_",
+                },
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"Last Hour\n*{prod.phour}* _pairs_"},
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"Average\n*{average_hprod}* _pairs/hr_"},
+            },
+            {"type": "divider"},
+        ]
+    }
+
+    return block
+
+
+def slack_block_summary(
+    prod: Production, data: dict[datetime.datetime, Production]
+) -> dict:
+    """Slack block for displaying day summary"""
+
+    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
+    data_string = "```\n"
+    for p in data.values():
+        data_string += f"{p.hour_string}  :  {p.achieved}"
+        data_string += " " * (8 - len(str(p.achieved)))
+        data_string += f"+{p.phour}\n"
+    data_string += "```"
+    highest_prod = max(data.values(), key=lambda p: p.phour)
+    first_prod = min(data.values(), key=lambda p: p.time)
+    # productions = list(data.values()) # Sort for getting top5, last5
+    # productions.sort(key=lambda x: x.phour)
+
+    block = {
+        "blocks": [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"{first_prod.time.strftime('%A - %b %d, %Y')}"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Achieved\n*{prod.achieved}* _pairs_ | *{prod.fg}* _cs_"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Last Hour\n*{prod.phour}* _pairs_"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Highest\n*{highest_prod.phour}* _pairs per hour_ `[{highest_prod.hour_string}]`"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Average\n*{average_hprod}* _pairs per hour_"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Summary\n{data_string}"
+                }
+            },
+            {
+                "type": "divider"
+            }
+        ]
+    }
+
+    return block
 
 
 def main(now: datetime.datetime = datetime.datetime.now()) -> None:
@@ -362,8 +489,10 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
         prod_log = loadHourlyProductionLog()
         if len(prod_log) > 0:
             min_time = min(prod_log.keys())
-            if (now.date() != min_time.date()):
-                if now.hour > 8 or (min_time.date() < now.date() - datetime.timedelta(days=1)):
+            if now.date() != min_time.date():
+                if now.hour > 8 or (
+                    min_time.date() < now.date() - datetime.timedelta(days=1)
+                ):
                     prod_log = {}
             else:
                 if min_time.hour <= 8 and now.hour > 8:
@@ -373,16 +502,13 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
     # Query execution
     try:
         # Current hour production
-        qresult_hour = cursor.execute(
-            query, hourly_sdate, hourly_edate)
+        qresult_hour = cursor.execute(query, hourly_sdate, hourly_edate)
         prod_now.phour = qresult_hour.fetchone()[0]
         # Production upto this hour
-        qresult_cur = cursor.execute(
-            query, start_date, hourly_edate)
+        qresult_cur = cursor.execute(query, start_date, hourly_edate)
         prod_now.achieved = qresult_cur.fetchone()[0]
         # FG production upto this hour
-        qresult_fg = cursor.execute(
-            query_fg, start_date, hourly_edate)
+        qresult_fg = cursor.execute(query_fg, start_date, hourly_edate)
         prod_now.fg = qresult_fg.fetchone()[0]
 
         prod_log[now] = prod_now
@@ -395,19 +521,25 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
         # Send to webhooks
         if prod_now.phour > 100:
             # Hourly report
-            embed = discord_embed_h(prod=prod_now, data=prod_log)
-            discord_url = wh.get("DISCORD", None)
-            webhook_discord(embed=embed, url=discord_url)
+            embed = discord_embed_hourly(prod=prod_now, data=prod_log)
+            webhook_discord(embed=embed, url=wh.get("DISCORD", None))
 
             if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
                 if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                     # If not sunday, send to google webhook
-                    webhook_google(prod=prod_now, data=prod_log,
-                                   url=wh.get("GOOGLE", None))
-        if now.hour == 8:
+                    webhook_google(
+                        prod=prod_now, data=prod_log, url=wh.get(
+                            "GOOGLE", None)
+                    )
+        if now.hour == 8 and len(prod_log) > 5:
             # Day summary
             embed = discord_embed_summary(prod=prod_now, data=prod_log)
             webhook_discord(embed=embed, url=wh.get("DISCORD_DAILY", None))
+            block = slack_block_summary(prod=prod_now, data=prod_log)
+        else:
+            block = slack_block_hourly(prod=prod_now, data=prod_log)
+
+        webhook_slack(block=block, url=wh.get("SLACK", None))
 
 
 if __name__ == "__main__":
