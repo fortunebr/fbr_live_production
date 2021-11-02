@@ -1,7 +1,12 @@
-"""Made with ❤️ from kalaLokia"""
+"""
+Get production information from SQL Server and send
+the report to webhooks (Discord, Slack, Google)
+
+Made with ❤️ from kalaLokia
+"""
 
 
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import configparser
 import datetime
@@ -20,6 +25,7 @@ class Production:
 
     def __init__(
         self,
+        date=datetime.datetime.now(),
         time=datetime.datetime.now(),
         achieved: int = 0,
         fg: int = 0,
@@ -28,6 +34,8 @@ class Production:
 
         self.time: datetime.datetime = time
         """Current hour datetime object."""
+        self.date: datetime.datetime = date
+        """Production day datetime object"""
         self.achieved: int = achieved
         """Production achieved upto this hour."""
         self.fg: int = fg
@@ -107,6 +115,27 @@ def randomColor() -> int:
             return 3447003  # Blue
 
 
+def getDailyProductionDate(cur_datetime) -> Tuple[datetime.datetime]:
+    """Get production hours.
+
+    8am to 8am (next day)
+    """
+
+    # New day production logging start at 9am (8am-9am)
+    logtime = datetime.time(9)
+
+    if cur_datetime.time() < logtime:
+        sday = cur_datetime.date() - datetime.timedelta(days=1)
+    else:
+        sday = cur_datetime.date()
+
+    eday = sday + datetime.timedelta(days=1)
+    time_period = datetime.time(8, 0)
+    start_date = datetime.datetime.combine(sday, time_period)
+    end_date = datetime.datetime.combine(eday, time_period)
+    return (start_date, end_date)
+
+
 def logMessage(msg) -> None:
     """Program execution failure/exception logging"""
 
@@ -148,8 +177,7 @@ def load_configuration():
 
             return connection_str, wh
         except KeyError as e:
-            logMessage(
-                f'Required key "{e.args[0]}" not found in configurations.')
+            logMessage(f'Required key "{e.args[0]}" not found in configurations.')
 
         except Exception as e:
             logMessage(f"Unknown exception occured.\n{e}")
@@ -184,17 +212,11 @@ def webhook_slack(block: dict, url=None) -> None:
         logMessage(f"Failed to send to slack webhook\n{e}")
 
 
-def webhook_google(
-    prod: Production, data: dict[datetime.datetime, Production], url=None
-) -> None:
+def webhook_google(prod: Production, url=None) -> None:
     """Google webhook execution"""
 
     if not url or not url.startswith("https://chat.googleapis.com"):
         return
-
-    data_string = ""
-    for p in data.values():
-        data_string += f"{p.hour_string}: {p.phour}\n"
 
     text_message = {
         "text": f"*{prod.achieved} prs*  |  *{prod.fg} cs*  _- {prod.time_string} (+{prod.phour} prs)_"
@@ -205,27 +227,6 @@ def webhook_google(
             logMessage(f"Google request failed: #{res.status_code}")
     except Exception as e:
         logMessage(f"Failed to send to google webhook\n{e}")
-
-
-def getDailyProductionDate(cur_datetime) -> Tuple[datetime.datetime]:
-    """Get production hours.
-
-    8am to 8am (next day)
-    """
-
-    # New day production logging start at 9am (8am-9am)
-    logtime = datetime.time(9)
-
-    if cur_datetime.time() < logtime:
-        sday = cur_datetime.date() - datetime.timedelta(days=1)
-    else:
-        sday = cur_datetime.date()
-
-    eday = sday + datetime.timedelta(days=1)
-    time_period = datetime.time(8, 0)
-    start_date = datetime.datetime.combine(sday, time_period)
-    end_date = datetime.datetime.combine(eday, time_period)
-    return (start_date, end_date)
 
 
 def loadHourlyProductionLog() -> dict[datetime.datetime, Production]:
@@ -256,12 +257,79 @@ def saveHourlyProductionLog(data: dict) -> None:
         logMessage(f"Failed to save current production log. \n{e}")
 
 
-def discord_embed_hourly(
-    prod: Production, data: dict[datetime.datetime, Production]
-) -> dict:
-    """Discord embed for displaying hourly"""
+def averageHourlyProduction(productions: Iterable[Production]) -> int:
+    """Returns average production"""
 
-    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
+    return int(sum([p.phour for p in productions]) / len(productions))
+
+
+def generateProductionSummaryReport(data: dict[datetime.datetime, Production]) -> dict:
+    """Returns production summary report"""
+
+    summary = {}
+    summary["top"] = max(data.values(), key=lambda p: p.phour)
+    summary["detail"] = ""
+    for p in data.values():
+        summary["detail"] += f"{p.hour_string}  :  {p.achieved}"
+        summary["detail"] += " " * (8 - len(str(p.achieved)))
+        summary["detail"] += f"+{p.phour}\n"
+
+    # productions = list(data.values()) # Sort for getting top5, last5
+    # productions.sort(key=lambda x: x.phour)
+
+    return summary
+
+
+# ToDo: Not checked
+def google_card_template(prod: Production, average: int, summary: dict = None) -> dict:
+    """Google card for displaying hourly"""
+
+    card = {
+        "text": f"{prod.achieved} pairs | {prod.fg} cs",
+        "cards": [
+            {
+                "sections": [
+                    {
+                        "widgets": [
+                            {
+                                "keyValue": {
+                                    "topLabel": f"Achieved",
+                                    "content": f"{prod.achieved} pairs | {prod.fg} cs",
+                                },
+                                "keyValue": {
+                                    "topLabel": f"Last hour",
+                                    "content": f"{prod.phour} pairs",
+                                },
+                                "keyValue": {
+                                    "topLabel": f"Average",
+                                    "content": f"{average} pairs/hour",
+                                },
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+    }
+
+    if summary:
+        top_prod: Production = summary["top"]
+        header = {"header": {"title": f"{prod.date.strftime('%A - %b %d, %Y')}"}}
+        key = {
+            "keyValue": {
+                "topLabel": "Highest",
+                "content": f"{top_prod.phour} pairs  [{top_prod.hour_string}]",
+            }
+        }
+
+        card["cards"][0]["sections"][0]["widgets"].insert(2, key)
+        card["cards"].insert(0, header)
+
+    return card
+
+
+def discord_embed_hourly(prod: Production, average: int) -> dict:
+    """Discord embed for displaying hourly"""
 
     embed = {
         "embeds": [
@@ -282,7 +350,7 @@ def discord_embed_hourly(
                     },
                     {
                         "name": "Average",
-                        "value": f"**{average_hprod}** pairs/hour",
+                        "value": f"**{average}** pairs/hour",
                         "inline": True,
                     },
                 ],
@@ -297,49 +365,35 @@ def discord_embed_hourly(
     return embed
 
 
-def discord_embed_summary(
-    prod: Production, data: dict[datetime.datetime, Production]
-) -> dict:
+def discord_embed_summary(prod: Production, average: int, summary: dict) -> dict:
     """Discord embed for displaying day summary"""
-
     # ToDo: Centralize these calculation to one place @also in slack
 
-    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
-    data_string = "```\n"
-    for p in data.values():
-        data_string += f"{p.hour_string}  :  {p.achieved}"
-        data_string += " " * (8 - len(str(p.achieved)))
-        data_string += f"+{p.phour}\n"
-    data_string += "```"
-    highest_prod = max(data.values(), key=lambda p: p.phour)
-    first_prod = min(data.values(), key=lambda p: p.time)
-    # productions = list(data.values()) # Sort for getting top5, last5
-    # productions.sort(key=lambda x: x.phour)
-
+    top_prod: Production = summary["top"]
     embed = {
         "embeds": [
             {
                 "color": f"{randomColor()}",
-                "author": {"name": f"{first_prod.time.strftime('%A - %b %d, %Y')}"},
+                "author": {"name": f"{prod.date.strftime('%A - %b %d, %Y')}"},
                 "thumbnail": {
                     "url": "https://i.imgur.com/e22h9tf.png",
                 },
                 "fields": [
                     {
-                        "name": "Total Achieved",
+                        "name": "Achieved",
                         "value": f"**{prod.achieved}** pairs | **{prod.fg}** cs",
                     },
                     {
-                        "name": "Highest (per hour)",
-                        "value": f"**{highest_prod.phour}** pairs\n{highest_prod.hour_string}",
+                        "name": "Highest",
+                        "value": f"**{top_prod.phour}** pairs/hour  `[{top_prod.hour_string}]`",
                         "inline": True,
                     },
                     {
                         "name": "Average",
-                        "value": f"**{average_hprod}** pairs/hour",
+                        "value": f"**{average}** pairs/hour",
                         "inline": True,
                     },
-                    {"name": "Report", "value": data_string},
+                    {"name": "Report", "value": "```{}```".format(summary["detail"])},
                 ],
                 "footer": {
                     "text": "Fortune Br",
@@ -352,14 +406,11 @@ def discord_embed_summary(
     return embed
 
 
-def slack_block_hourly(
-    prod: Production, data: dict[datetime.datetime, Production]
-) -> dict:
+def slack_block_template(prod: Production, average: int, summary: dict = None) -> dict:
     """Slack block for displaying hourly"""
 
-    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
-
     block = {
+        "text": f"{prod.achieved} pairs | {prod.fg} cs",
         "blocks": [
             {
                 "type": "section",
@@ -370,87 +421,106 @@ def slack_block_hourly(
             },
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"Last Hour\n*{prod.phour}* _pairs_"},
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Last Hour\n*{prod.phour}* _pairs_",
+                },
             },
             {
                 "type": "section",
-                "text": {"type": "mrkdwn", "text": f"Average\n*{average_hprod}* _pairs/hr_"},
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"Average\n*{average}* _pairs/hour_",
+                },
             },
             {"type": "divider"},
-        ]
+        ],
     }
 
+    if summary:
+        top_prod: Production = summary["top"]
+        header = {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": f"{prod.date.strftime('%A - %b %d, %Y')}",
+            },
+        }
+        key_top = {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"Highest\n*{top_prod.phour}* _pairs/hour_ `[{top_prod.hour_string}]`",
+            },
+        }
+        key_summary = {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"Summary\n```{summary['detail']}```",
+            },
+        }
+        block["blocks"].insert(0, header)
+        block["blocks"].insert(3, key_top)
+        block["blocks"].insert(-1, key_summary)  # before last
     return block
 
 
-def slack_block_summary(
-    prod: Production, data: dict[datetime.datetime, Production]
-) -> dict:
-    """Slack block for displaying day summary"""
+# def slack_block_summary(prod: Production, average: int, summary: dict) -> dict:
+#     """Slack block for displaying day summary"""
 
-    average_hprod = int(sum([p.phour for p in data.values()]) / len(data))
-    data_string = "```\n"
-    for p in data.values():
-        data_string += f"{p.hour_string}  :  {p.achieved}"
-        data_string += " " * (8 - len(str(p.achieved)))
-        data_string += f"+{p.phour}\n"
-    data_string += "```"
-    highest_prod = max(data.values(), key=lambda p: p.phour)
-    first_prod = min(data.values(), key=lambda p: p.time)
-    # productions = list(data.values()) # Sort for getting top5, last5
-    # productions.sort(key=lambda x: x.phour)
+#     top_prod: Production = summary["top"]
 
-    block = {
-        "blocks": [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": f"{first_prod.time.strftime('%A - %b %d, %Y')}"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Achieved\n*{prod.achieved}* _pairs_ | *{prod.fg}* _cs_"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Last Hour\n*{prod.phour}* _pairs_"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Highest\n*{highest_prod.phour}* _pairs per hour_ `[{highest_prod.hour_string}]`"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Average\n*{average_hprod}* _pairs per hour_"
-                }
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"Summary\n{data_string}"
-                }
-            },
-            {
-                "type": "divider"
-            }
-        ]
-    }
+#     block = {
+#         "text": f"{prod.achieved} pairs | {prod.fg} cs",
+#         "blocks": [
+#             {
+#                 "type": "header",
+#                 "text": {
+#                     "type": "plain_text",
+#                     "text": f"{prod.date.strftime('%A - %b %d, %Y')}",
+#                 },
+#             },
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"Achieved\n*{prod.achieved}* _pairs_ | *{prod.fg}* _cs_",
+#                 },
+#             },
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"Last Hour\n*{prod.phour}* _pairs_",
+#                 },
+#             },
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"Highest\n*{top_prod.phour}* _pairs/hour_ `[{top_prod.hour_string}]`",
+#                 },
+#             },
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"Average\n*{average}* _pairs/hour_",
+#                 },
+#             },
+#             {
+#                 "type": "section",
+#                 "text": {
+#                     "type": "mrkdwn",
+#                     "text": f"Summary\n```{summary['detail']}```",
+#                 },
+#             },
+#             {"type": "divider"},
+#         ],
+#     }
 
-    return block
+#     return block
 
 
 def main(now: datetime.datetime = datetime.datetime.now()) -> None:
@@ -519,26 +589,27 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
 
     if prod_now.achieved > 100 and prod_log:
         # Send to webhooks
+        average_production = averageHourlyProduction(prod_log.values())
+        summary = None
         if prod_now.phour > 100:
             # Hourly report
-            embed = discord_embed_hourly(prod=prod_now, data=prod_log)
+            embed = discord_embed_hourly(prod=prod_now, average=average_production)
             webhook_discord(embed=embed, url=wh.get("DISCORD", None))
 
             if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
                 if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                     # If not sunday, send to google webhook
-                    webhook_google(
-                        prod=prod_now, data=prod_log, url=wh.get(
-                            "GOOGLE", None)
-                    )
+                    webhook_google(prod=prod_now, url=wh.get("GOOGLE", None))
+
         if now.hour == 8 and len(prod_log) > 5:
             # Day summary
-            embed = discord_embed_summary(prod=prod_now, data=prod_log)
+            summary = generateProductionSummaryReport(prod_log)
+            embed = discord_embed_summary(prod_now, average_production, summary)
             webhook_discord(embed=embed, url=wh.get("DISCORD_DAILY", None))
-            block = slack_block_summary(prod=prod_now, data=prod_log)
         else:
-            block = slack_block_hourly(prod=prod_now, data=prod_log)
+            pass
 
+        block = slack_block_template(prod_now, average_production, summary)
         webhook_slack(block=block, url=wh.get("SLACK", None))
 
 
