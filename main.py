@@ -1,6 +1,15 @@
 """
-Get production information from SQL Server and send
-the report to webhooks (Discord, Slack, Google)
+Gets production at current hour from SQL Server and send the results to webhooks.
+
+Notes:
+--------------------------------
+* Root folder is set to "C:/fbr_prodcution/".
+* All exceptions are logged in `log.txt` file.
+* **SQL Server, Webhook** configuration has to be set in `config.ini` (*a template is provided with repo*).
+* Hourly report is logged in `production.pickle`, *do not delete that*.
+* Total number of queries per execution is 3.
+* To run the script, [odbc](https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver15) driver has to be installed.
+
 
 Made with ❤️ from kalaLokia
 """
@@ -26,7 +35,7 @@ from core.webhook import webhook_slack, webhook_discord, webhook_google, webhook
 from templates import slack_template, discord_template, google_template
 
 
-def main(now: datetime.datetime = datetime.datetime.now()) -> None:
+def main(now: datetime.datetime) -> None:
     """Connect to SQL Server and execute the query to count rows.
 
     * Total number of queries to run: 3
@@ -48,8 +57,10 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
         cursor = conn.cursor()
     except ConnectionError:
         logMessage("Failed to connect SQL Server")
+        return
     except Exception as e:
         logMessage(f"Connection to server failed.\n{e}")
+        return
 
     start_date, end_date = getDailyProductionDate(now)
 
@@ -89,6 +100,7 @@ def main(now: datetime.datetime = datetime.datetime.now()) -> None:
 
     except Exception as e:
         logMessage(f"Query execution failed.\n{e}")
+        return
 
     if prod_now.achieved > 100 and prod_log:
         # Send to webhooks
