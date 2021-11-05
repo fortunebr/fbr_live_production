@@ -3,18 +3,16 @@ Utilities
 
 """
 
-
 import configparser
 import datetime
-import pickle
 from typing import TYPE_CHECKING, Tuple
 
+import pickle
+
+from . import root
 
 if TYPE_CHECKING:
     from .production import Production
-
-
-root = "C:/fbr_production/"
 
 
 def getDailyProductionDate(cur_datetime) -> Tuple[datetime.datetime]:
@@ -41,16 +39,12 @@ def getDailyProductionDate(cur_datetime) -> Tuple[datetime.datetime]:
 def logMessage(msg) -> None:
     """Program execution failure/exception logging"""
 
-    global root
-
     with open(root + "log.txt", "a+") as f:
         f.write(f"{datetime.datetime.now()}  {msg}\n")
 
 
 def load_configuration():
     """Load application's configurations"""
-
-    global root
 
     config = configparser.ConfigParser(interpolation=None)
     exists = config.read(root + "config.ini")
@@ -91,7 +85,6 @@ def load_configuration():
 def loadHourlyProductionLog() -> dict[datetime.datetime, "Production"]:
     """Get hourly logging from previously saved local file"""
 
-    global root
     hourly_log = {}
 
     try:
@@ -108,7 +101,6 @@ def loadHourlyProductionLog() -> dict[datetime.datetime, "Production"]:
 def saveHourlyProductionLog(data: dict) -> None:
     """Saves the current latest log in the file"""
 
-    global root
     try:
         with open(root + "production.pickle", "w+b") as f:
             pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)

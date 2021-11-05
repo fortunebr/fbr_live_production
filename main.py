@@ -31,17 +31,17 @@ from core.utils import (
     loadHourlyProductionLog,
     saveHourlyProductionLog,
 )
-from core.webhook import webhook_slack, webhook_discord, webhook_google, webhook_google2
+from core.webhook import webhook_slack, webhook_discord, webhook_google
 from templates import slack_template, discord_template, google_template
 
 
-def main(now: datetime.datetime) -> None:
+def main() -> None:
     """Connect to SQL Server and execute the query to count rows.
 
     * Total number of queries to run: 3
     * Send results to Discord/Google webhook
     """
-
+    now = datetime.datetime.now()
     con_str, wh = load_configuration()
     query = "select count(*) from [barcode].[dbo].[tbl_ProductionScan] where [prod_date] between ? and ?"
     query_fg = "select count(*) from [barcode].[dbo].[tbl_StorageScan] where [store_date] between ? and ?"
@@ -112,27 +112,23 @@ def main(now: datetime.datetime) -> None:
 
         if prod_now.phour > 100 or (now.hour == 8 and len(prod_log) > 5):
             # Hourly report
-
             embed = discord_template(prod_now, average_production, summary)
             block = slack_template(prod_now, average_production, summary)
             card = google_template(prod_now, average_production, summary)
 
             webhook_discord(embed=embed, url=wh.get("DISCORD", None))
             webhook_slack(block=block, url=wh.get("SLACK", None))
-            # ToDo: Test google card looks
-            # webhook_google(card=card, url=wh.get("GOOGLE", None))
 
             if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
                 if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                     # If not sunday, send to google webhook
-                    webhook_google2(prod_now, wh.ger("GOOGLE", None))
+                    webhook_google(card=card, url=wh.get("GOOGLE", None))
 
 
 if __name__ == "__main__":
-    now = datetime.datetime.now()
 
     # ToDo: Remove try-catch expression here
     try:
-        main(now)
+        main()
     except Exception as e:
         logMessage(f"Main program execution failed.\n{e}")

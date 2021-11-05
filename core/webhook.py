@@ -55,20 +55,3 @@ def webhook_google(card: dict, url=None) -> None:
             logMessage(f"Google request failed: #{res.status_code}")
     except Exception as e:
         logMessage(f"Failed to send to google webhook\n{e}")
-
-
-def webhook_google2(prod: "Production", url=None) -> None:
-    """Google webhook execution"""
-
-    if not url or not url.startswith("https://chat.googleapis.com"):
-        return
-
-    text_message = {
-        "text": f"*{prod.achieved} prs*  |  *{prod.fg} cs*  _- {prod.time_string} (+{prod.phour} prs)_"
-    }
-    try:
-        res = requests.post(url, json=text_message)
-        if res.status_code >= 400:
-            logMessage(f"Google request failed: #{res.status_code}")
-    except Exception as e:
-        logMessage(f"Failed to send to google webhook\n{e}")

@@ -150,7 +150,7 @@ def discord_template(prod: "Production", average: int, summary: dict=None) -> di
     return embed
 
 
-def slack_template(prod: Production, average: int,summary: dict=None) -> dict:
+def slack_template(prod: "Production", average: int,summary: dict=None) -> dict:
     """Slack block type message."""
     
     if not summary:
@@ -238,7 +238,7 @@ def slack_template(prod: Production, average: int,summary: dict=None) -> dict:
 
 
 # ToDo: Not checked
-def google_template(prod: Production, average: int, summary: dict = None) -> dict:
+def google_template(prod: "Production", average: int, summary: dict = None) -> dict:
     """Google card type message."""
 
     card = {
@@ -248,20 +248,14 @@ def google_template(prod: Production, average: int, summary: dict = None) -> dic
                 "sections": [
                     {
                         "widgets": [
+                            
                             {
-                                "keyValue": {
-                                    "topLabel": f"Achieved",
-                                    "content": f"{prod.achieved} pairs | {prod.fg} cs",
-                                },
                                 "keyValue": {
                                     "topLabel": f"Last hour",
                                     "content": f"{prod.phour} pairs",
-                                },
-                                "keyValue": {
-                                    "topLabel": f"Average",
-                                    "content": f"{average} pairs/hour",
-                                },
-                            }
+                                }
+                            },
+                            
                         ]
                     }
                 ]
@@ -270,16 +264,24 @@ def google_template(prod: Production, average: int, summary: dict = None) -> dic
     }
 
     if summary:
-        top_prod: Production = summary["top"]
+        # top_prod: Production = summary["top"]
         header = {"header": {"title": f"{prod.date.strftime('%A - %b %d, %Y')}"}}
-        key = {
-            "keyValue": {
-                "topLabel": "Highest",
-                "content": f"{top_prod.phour} pairs  [{top_prod.hour_string}]",
+        keys = [
+               {
+                "keyValue": {
+                    "topLabel": f"Achieved",
+                    "content": f"{prod.achieved} pairs | {prod.fg} cs",
+                },
+            },
+                {
+                "keyValue": {
+                    "topLabel": f"Average",
+                    "content": f"{average} pairs/hour",
+                },
             }
-        }
+        ]
 
-        card["cards"][0]["sections"][0]["widgets"].insert(2, key)
+        card["cards"][0]["sections"][0]["widgets"].extend(keys)
         card["cards"].insert(0, header)
 
     return card
