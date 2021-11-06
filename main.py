@@ -16,6 +16,7 @@ Made with ❤️ from kalaLokia
 
 
 import datetime
+import socket
 
 import pyodbc
 
@@ -82,7 +83,7 @@ def main() -> None:
                 if min_time.hour <= 8 and now.hour > 8:
                     prod_log = {}
 
-    prod_now = Production(time=hourly_edate)
+    prod_now = Production(time=hourly_edate, date=start_date)
     # Query execution
     try:
         # Current hour production
@@ -97,6 +98,13 @@ def main() -> None:
 
         prod_log[hourly_edate] = prod_now
         saveHourlyProductionLog(prod_log)
+
+        network_connection_test = socket.create_connection(("1.1.1.1", 53))
+
+    except OSError:
+        # Internet connection is not available
+        # Cannot send to webhooks
+        return
 
     except Exception as e:
         logMessage(f"Query execution failed.\n{e}")
