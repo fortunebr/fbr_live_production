@@ -3,7 +3,6 @@ Production information.
 
 """
 
-
 import datetime
 from typing import Iterable
 

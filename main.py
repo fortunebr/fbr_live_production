@@ -1,17 +1,17 @@
 """
 Gets production at current hour from SQL Server and send the results to webhooks.
 
+This program is designed for a private local SQL Server and all instructions provided here is considering that fact.
+
 Notes:
 --------------------------------
 * Root folder is set to "C:/fbr_prodcution/".
 * All exceptions are logged in `log.txt` file.
-* **SQL Server, Webhook** configuration has to be set in `config.ini` (*a template is provided with repo*).
+* **SQL Server, Webhook** configuration is expected in `config.ini` or default will be hard coded with application.
 * Hourly report is logged in `production.pickle`, *do not delete that*.
-* Total number of queries per execution is 3.
+* Total number of queries per execution is 3, expect a 4th with month cumulative in future.
 * To run the script, [odbc](https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver15) driver has to be installed.
 
-
-Made with ❤️ from kalaLokia
 """
 
 
@@ -20,6 +20,14 @@ import socket
 
 import pyodbc
 
+from core.settings import (
+    CONNECTION_STRING,
+    DISCORD_WH,
+    GOOGLE_WH,
+    SLACK_WH,
+    SLACK_APP_TOKEN,
+    SLACK_CHANNEL_ID,
+)
 from core.production import (
     Production,
     averageHourlyProduction,
@@ -27,13 +35,17 @@ from core.production import (
 )
 from core.utils import (
     getDailyProductionDate,
-    load_configuration,
-    logMessage,
     loadHourlyProductionLog,
+    logMessage,
     saveHourlyProductionLog,
 )
-from core.webhook import webhook_slack, webhook_discord, webhook_google
-from templates import slack_template, discord_template, google_template
+from core.web_api import slack_api, webhook_request
+from templates import (
+    discord_template,
+    google_template,
+    slack_api_template,
+    slack_template,
+)
 
 
 def main() -> None:
@@ -42,17 +54,17 @@ def main() -> None:
     * Total number of queries to run: 3
     * Send results to Discord/Google webhook
     """
+
+    if not CONNECTION_STRING:
+        return
+
     now = datetime.datetime.now()
-    con_str, wh = load_configuration()
     query = "select count(*) from [barcode].[dbo].[tbl_ProductionScan] where [prod_date] between ? and ?"
     query_fg = "select count(*) from [barcode].[dbo].[tbl_StorageScan] where [store_date] between ? and ?"
 
-    if not con_str:
-        return
-
     # Connecting SQL Server
     try:
-        conn = pyodbc.connect(con_str)
+        conn = pyodbc.connect(CONNECTION_STRING)
         if not conn:
             raise ConnectionError("Failed to connect SQL Server.")
         cursor = conn.cursor()
@@ -120,17 +132,23 @@ def main() -> None:
 
         if prod_now.phour > 100 or (now.hour == 8 and len(prod_log) > 5):
             # Hourly report
-            embed = discord_template(prod_now, average_production, summary)
-            block = slack_template(prod_now, average_production, summary)
-            card = google_template(prod_now, average_production, summary)
+            if DISCORD_WH:
+                embed = discord_template(prod_now, average_production, summary)
+                webhook_request(DISCORD_WH, embed, "discord")
 
-            webhook_discord(embed=embed, url=wh.get("DISCORD", None))
-            webhook_slack(block=block, url=wh.get("SLACK", None))
+            if SLACK_APP_TOKEN:
+                contents = slack_api_template(prod_now, average_production, summary)
+                slack_api(SLACK_APP_TOKEN, SLACK_CHANNEL_ID, **contents)
+            elif SLACK_WH:
+                block = slack_template(prod_now, average_production, summary)
+                webhook_request(SLACK_WH, block, "slack")
 
             if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
                 if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                     # If not sunday, send to google webhook
-                    webhook_google(card=card, url=wh.get("GOOGLE", None))
+                    if GOOGLE_WH:
+                        card = google_template(prod_now, average_production, summary)
+                        webhook_request(GOOGLE_WH, card, "google")
 
 
 if __name__ == "__main__":

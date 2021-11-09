@@ -1,1 +1,3 @@
-root = "C:/fbr_production/"
+ROOT = "C:/fbr_production/"
+
+CONNECTION_STRING = None
