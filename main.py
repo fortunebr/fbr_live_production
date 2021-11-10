@@ -139,7 +139,8 @@ def main() -> None:
             if SLACK_APP_TOKEN:
                 contents = slack_api_template(prod_now, average_production, summary)
                 slack_api(SLACK_APP_TOKEN, SLACK_CHANNEL_ID, **contents)
-            elif SLACK_WH:
+
+            if SLACK_WH:
                 block = slack_template(prod_now, average_production, summary)
                 webhook_request(SLACK_WH, block, "slack")
 

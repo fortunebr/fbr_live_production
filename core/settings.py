@@ -44,13 +44,16 @@ if exists:
         try:
             SLACK_APP_TOKEN = config["SLACK APP"]["TOKEN"]
             SLACK_CHANNEL_ID = config["SLACK APP"]["CHANNEL_ID"]
-            is_api_available = True
+            if not SLACK_APP_TOKEN.startswith("xoxb"):
+                SLACK_APP_TOKEN = None
+            else:
+                is_api_available = True
         except KeyError as e:
             SLACK_APP_TOKEN = None
             logMessage(f'Required key "{e.args[0]}" not found in configurations.')
-    # Either slack webhook or slack bot is allowed
-    elif config.has_option("WEBHOOK", "SLACK"):
-        value = config.has_option("WEBHOOK", "SLACK")
+
+    if config.has_option("WEBHOOK", "SLACK"):
+        value = config.get("WEBHOOK", "SLACK")
         if value.startswith("https://hooks.slack.com/services/"):
             SLACK_WH = value
             is_api_available = True
