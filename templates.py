@@ -30,7 +30,7 @@ def randomColor() -> int:
         "orange": 15105570,
         "blue": 3447003,
     }
-    return random.random.choice(discord_colors.value())
+    return random.random.choice(discord_colors.values())
 
 
 def discord_template(prod: "Production", average: int, summary: dict = None) -> dict:
