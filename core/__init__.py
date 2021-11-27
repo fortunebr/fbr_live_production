@@ -1,3 +1,6 @@
 ROOT = "C:/fbr_production/"
 
 CONNECTION_STRING = None
+
+MIN_PRODUCTION = 100
+LOG_SUNDAY = False

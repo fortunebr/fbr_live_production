@@ -7,7 +7,7 @@ import configparser
 import os
 
 from .utils import logMessage
-from . import ROOT, CONNECTION_STRING
+from . import ROOT, CONNECTION_STRING, LOG_SUNDAY, MIN_PRODUCTION
 
 
 if not os.path.exists(ROOT):
@@ -69,6 +69,22 @@ if exists:
         if value.startswith("https://chat.googleapis.com"):
             GOOGLE_WH = value
             is_api_available = True
+
+    if config.has_option("GENERAL", "SUNDAY_ENABLE"):
+        value = config.get("GENERAL", "SUNDAY_ENABLE")
+        try:
+            if int(value) != 0:
+                LOG_SUNDAY = True
+        except:
+            pass  # Default value will consider
+
+    if config.has_option("GENERAL", "MIN_PRODUCTION_LOGGING"):
+        value = config.get("GENERAL", "MIN_PRODUCTION_LOGGING")
+        try:
+            if int(value) > 0:
+                MIN_PRODUCTION = int(value)
+        except:
+            pass  # Default value will consider
 
     if not is_api_available:
         logMessage("No valid webhook configurations found. Failed to sent report.")

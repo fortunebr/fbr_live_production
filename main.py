@@ -27,6 +27,8 @@ from core.settings import (
     SLACK_WH,
     SLACK_APP_TOKEN,
     SLACK_CHANNEL_ID,
+    LOG_SUNDAY,
+    MIN_PRODUCTION,
 )
 from core.production import (
     Production,
@@ -122,7 +124,7 @@ def main() -> None:
         logMessage(f"Query execution failed.\n{e}")
         return
 
-    if prod_now.achieved > 100 and prod_log:
+    if prod_now.achieved >= MIN_PRODUCTION and prod_log:
         # Send to webhooks
         average_production = averageHourlyProduction(prod_log.values())
         summary = None
@@ -130,7 +132,7 @@ def main() -> None:
         if now.hour == 8 and len(prod_log) > 5:
             summary = generateProductionSummary(prod_log)
 
-        if prod_now.phour > 100 or (now.hour == 8 and len(prod_log) > 5):
+        if prod_now.phour > MIN_PRODUCTION or (now.hour == 8 and len(prod_log) > 5):
             # Hourly report
             if DISCORD_WH:
                 embed = discord_template(prod_now, average_production, summary)
@@ -143,13 +145,19 @@ def main() -> None:
             if SLACK_WH:
                 block = slack_template(prod_now, average_production, summary)
                 webhook_request(SLACK_WH, block, "slack")
-
-            if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
-                if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
-                    # If not sunday, send to google webhook
-                    if GOOGLE_WH:
-                        card = google_template(prod_now, average_production, summary)
-                        webhook_request(GOOGLE_WH, card, "google")
+            if LOG_SUNDAY:
+                if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
+                    if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
+                        # If not sunday, send to google webhook
+                        if GOOGLE_WH:
+                            card = google_template(
+                                prod_now, average_production, summary
+                            )
+                            webhook_request(GOOGLE_WH, card, "google")
+            else:
+                if GOOGLE_WH:
+                    card = google_template(prod_now, average_production, summary)
+                    webhook_request(GOOGLE_WH, card, "google")
 
 
 if __name__ == "__main__":
