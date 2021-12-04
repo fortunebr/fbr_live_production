@@ -113,6 +113,9 @@ def main() -> None:
         prod_log[hourly_edate] = prod_now
         saveHourlyProductionLog(prod_log)
 
+        cursor.close()
+        conn.close()
+
         network_connection_test = socket.create_connection(("1.1.1.1", 53))
 
     except OSError:
