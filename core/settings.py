@@ -19,6 +19,8 @@ GOOGLE_WH = None
 SLACK_APP_TOKEN = None
 SLACK_CHANNEL_ID = None
 
+DATABASE_NAME = "barcode" # default
+
 is_api_available = False
 
 config = configparser.ConfigParser(interpolation=None)
@@ -28,10 +30,11 @@ if exists:
 
     if config.has_section("SQL SERVER"):
         try:
+            DATABASE_NAME = config["SQL SERVER"]["DATABASE"]
             CONNECTION_STRING = (
                 r"Driver={ODBC Driver 17 for SQL Server};"
                 rf'Server={config["SQL SERVER"]["SERVER"]};'
-                rf'Database={config["SQL SERVER"]["DATABASE"]};'
+                rf"Database={DATABASE_NAME};"
                 rf'uid={config["SQL SERVER"]["UID"]};'
                 rf'pwd={config["SQL SERVER"]["PWD"]};'
                 r"Integrated Security=false;"

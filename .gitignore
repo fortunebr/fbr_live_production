@@ -2,6 +2,3 @@
 *__pycache__*
 *.pickle 
 .vscode 
-
-# Configuration file
-config.ini 

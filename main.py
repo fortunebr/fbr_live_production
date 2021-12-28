@@ -29,6 +29,7 @@ from core.settings import (
     SLACK_CHANNEL_ID,
     LOG_SUNDAY,
     MIN_PRODUCTION,
+    DATABASE_NAME
 )
 from core.production import (
     Production,
@@ -61,8 +62,8 @@ def main() -> None:
         return
 
     now = datetime.datetime.now()
-    query = "select count(*) from [barcode].[dbo].[tbl_ProductionScan] where [prod_date] between ? and ?"
-    query_fg = "select count(*) from [barcode].[dbo].[tbl_StorageScan] where [store_date] between ? and ?"
+    query = f"select count(*) from {DATABASE_NAME}.[dbo].[tbl_ProductionScan] where [prod_date] between ? and ?"
+    query_fg = f"select count(*) from {DATABASE_NAME}.[dbo].[tbl_StorageScan] where [store_date] between ? and ?"
 
     # Connecting SQL Server
     try:
@@ -115,7 +116,6 @@ def main() -> None:
 
         cursor.close()
         conn.close()
-
         network_connection_test = socket.create_connection(("1.1.1.1", 53))
 
     except OSError:
