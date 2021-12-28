@@ -6,6 +6,8 @@ Production information.
 import datetime
 from typing import Iterable
 
+from core.settings import PRODUCTION_START_HOUR
+
 
 class Production:
     """Model for storing hourly production details."""
@@ -43,6 +45,14 @@ class Production:
     @property
     def time_string(self):
         return self.time.strftime("%I:%M %p")
+
+    @property
+    def phour_count(self):
+        """Returns hour count"""
+        count = self.time.hour - PRODUCTION_START_HOUR
+        if count <= 0:
+            count += 24
+        return count
 
 
 def averageHourlyProduction(productions: Iterable[Production]) -> int:

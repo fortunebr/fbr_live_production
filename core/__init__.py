@@ -4,6 +4,7 @@ CONNECTION_STRING = None
 
 MIN_PRODUCTION = 100
 LOG_SUNDAY = False
+PRODUCTION_START_HOUR = 8  # 24 hour format (0-23)
 
 # # Set default connection string here
 # CONNECTION_STRING = (

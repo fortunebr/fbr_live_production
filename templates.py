@@ -48,7 +48,7 @@ def discord_template(prod: "Production", average: int, summary: dict = None) -> 
                             "value": f"**{prod.achieved}** pairs | **{prod.fg}** cs",
                         },
                         {
-                            "name": "Last Hour",
+                            "name": f"Last Hour  [ {prod.phour_count} ]",
                             "value": f"**{prod.phour}** pairs",
                             "inline": True,
                         },
@@ -129,7 +129,7 @@ def slack_template(prod: "Production", average: int, summary: dict = None) -> di
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Last Hour\n*{prod.phour}* _pairs_",
+                        "text": f"Last Hour  [ {prod.phour_count} ]env\s\n*{prod.phour}* _pairs_",
                     },
                 },
                 {
@@ -210,7 +210,7 @@ def google_template(prod: "Production", average: int, summary: dict = None) -> d
                         "widgets": [
                             {
                                 "keyValue": {
-                                    "topLabel": f"Last hour",
+                                    "topLabel": f"Last hour  [ {prod.phour_count} ]",
                                     "content": f"{prod.phour} pairs",
                                 }
                             },

@@ -19,7 +19,9 @@ import datetime
 import socket
 
 import pyodbc
+from core import PRODUCTION_START_HOUR
 
+from core.log_me import logMessage
 from core.settings import (
     CONNECTION_STRING,
     DISCORD_WH,
@@ -29,7 +31,8 @@ from core.settings import (
     SLACK_CHANNEL_ID,
     LOG_SUNDAY,
     MIN_PRODUCTION,
-    DATABASE_NAME
+    DATABASE_NAME,
+    PRODUCTION_START_HOUR,
 )
 from core.production import (
     Production,
@@ -39,7 +42,6 @@ from core.production import (
 from core.utils import (
     getDailyProductionDate,
     loadHourlyProductionLog,
-    logMessage,
     saveHourlyProductionLog,
 )
 from core.web_api import slack_api, webhook_request
@@ -90,12 +92,15 @@ def main() -> None:
         if len(prod_log) > 0:
             min_time = min(prod_log.keys())
             if now.date() != min_time.date():
-                if now.hour > 8 or (
+                if now.hour > PRODUCTION_START_HOUR or (
                     min_time.date() < now.date() - datetime.timedelta(days=1)
                 ):
                     prod_log = {}
             else:
-                if min_time.hour <= 8 and now.hour > 8:
+                if (
+                    min_time.hour <= PRODUCTION_START_HOUR
+                    and now.hour > PRODUCTION_START_HOUR
+                ):
                     prod_log = {}
 
     prod_now = Production(time=hourly_edate, date=start_date)
@@ -132,10 +137,12 @@ def main() -> None:
         average_production = averageHourlyProduction(prod_log.values())
         summary = None
 
-        if now.hour == 8 and len(prod_log) > 5:
+        if now.hour == PRODUCTION_START_HOUR and len(prod_log) > 5:
             summary = generateProductionSummary(prod_log)
 
-        if prod_now.phour > MIN_PRODUCTION or (now.hour == 8 and len(prod_log) > 5):
+        if prod_now.phour > MIN_PRODUCTION or (
+            now.hour == PRODUCTION_START_HOUR and len(prod_log) > 5
+        ):
             # Hourly report
             if DISCORD_WH:
                 embed = discord_template(prod_now, average_production, summary)
@@ -149,7 +156,10 @@ def main() -> None:
                 block = slack_template(prod_now, average_production, summary)
                 webhook_request(SLACK_WH, block, "slack")
             if LOG_SUNDAY:
-                if not (now.weekday() == 6 and now.time() > datetime.time(8, 15)):
+                if not (
+                    now.weekday() == 6
+                    and now.time() > datetime.time(PRODUCTION_START_HOUR, 15)
+                ):
                     if not (now.weekday() == 0 and now.time() <= datetime.time(7, 59)):
                         # If not sunday, send to google webhook
                         if GOOGLE_WH:

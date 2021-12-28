@@ -6,9 +6,8 @@ Main configurations of the application, this file needed to be loaded initially.
 import configparser
 import os
 
-from .utils import logMessage
-from . import ROOT, CONNECTION_STRING, LOG_SUNDAY, MIN_PRODUCTION
-
+from . import ROOT, CONNECTION_STRING, LOG_SUNDAY, MIN_PRODUCTION, PRODUCTION_START_HOUR
+from .log_me import logMessage
 
 if not os.path.exists(ROOT):
     os.makedirs(ROOT)
@@ -19,12 +18,13 @@ GOOGLE_WH = None
 SLACK_APP_TOKEN = None
 SLACK_CHANNEL_ID = None
 
-DATABASE_NAME = "barcode" # default
+DATABASE_NAME = "barcode"  # default
 
 is_api_available = False
 
 config = configparser.ConfigParser(interpolation=None)
 exists = config.read(ROOT + "config.ini")
+
 
 if exists:
 
@@ -86,6 +86,15 @@ if exists:
         try:
             if int(value) > 0:
                 MIN_PRODUCTION = int(value)
+        except:
+            pass  # Default value will consider
+
+    if config.has_option("GENERAL", "PRODUCTION_START_HOUR"):
+        value = config.get("GENERAL", "PRODUCTION_START_HOUR")
+        value = int(value)
+        try:
+            if value >= 0 and value < 24:
+                PRODUCTION_START_HOUR = value
         except:
             pass  # Default value will consider
 

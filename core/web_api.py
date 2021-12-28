@@ -9,7 +9,7 @@ import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from .utils import logMessage
+from .log_me import logMessage
 
 
 def webhook_request(url: str, data: dict, wh_type: Optional[str] = ""):
