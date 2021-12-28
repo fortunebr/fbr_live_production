@@ -44,8 +44,8 @@ from core.utils import (
     loadHourlyProductionLog,
     saveHourlyProductionLog,
 )
-from core.web_api import slack_api, webhook_request
-from templates import (
+from api.web_api import slack_api, webhook_request
+from api.templates import (
     discord_template,
     google_template,
     slack_api_template,

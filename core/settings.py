@@ -17,6 +17,7 @@ DISCORD_WH = None
 GOOGLE_WH = None
 SLACK_APP_TOKEN = None
 SLACK_CHANNEL_ID = None
+DISPLAY_HOUR_COUNT = 0
 
 DATABASE_NAME = "barcode"  # default
 
@@ -45,7 +46,7 @@ if exists:
 
     if config.has_section("SLACK APP"):
         try:
-            SLACK_APP_TOKEN = config["SLACK APP"]["TOKEN"]
+            SLACK_APP_TOKEN = config["SLACK APP"]["BOT_TOKEN"]
             SLACK_CHANNEL_ID = config["SLACK APP"]["CHANNEL_ID"]
             if not SLACK_APP_TOKEN.startswith("xoxb"):
                 SLACK_APP_TOKEN = None
@@ -91,10 +92,18 @@ if exists:
 
     if config.has_option("GENERAL", "PRODUCTION_START_HOUR"):
         value = config.get("GENERAL", "PRODUCTION_START_HOUR")
-        value = int(value)
         try:
+            value = int(value)
             if value >= 0 and value < 24:
                 PRODUCTION_START_HOUR = value
+        except:
+            pass  # Default value will consider
+    if config.has_option("GENERAL", "DISPLAY_HOUR_COUNT"):
+        value = config.get("GENERAL", "DISPLAY_HOUR_COUNT")
+        try:
+            value = int(value)
+            if value == 1:
+                DISPLAY_HOUR_COUNT = value
         except:
             pass  # Default value will consider
 

@@ -11,6 +11,8 @@ Message templates for each webhooks/apis.
 import random
 from typing import TYPE_CHECKING
 
+from core.settings import DISPLAY_HOUR_COUNT
+
 
 if TYPE_CHECKING:
     from core.production import Production
@@ -36,6 +38,10 @@ def randomColor() -> int:
 def discord_template(prod: "Production", average: int, summary: dict = None) -> dict:
     """Discord embed type meesage."""
 
+    last_hour = "Last Hour"
+    if DISPLAY_HOUR_COUNT == 1:
+        last_hour += f"  [ {prod.phour_count} ]"
+
     if not summary:
         # Hourly embed
         embed = {
@@ -48,7 +54,7 @@ def discord_template(prod: "Production", average: int, summary: dict = None) -> 
                             "value": f"**{prod.achieved}** pairs | **{prod.fg}** cs",
                         },
                         {
-                            "name": f"Last Hour  [ {prod.phour_count} ]",
+                            "name": last_hour,
                             "value": f"**{prod.phour}** pairs",
                             "inline": True,
                         },
@@ -113,6 +119,10 @@ def discord_template(prod: "Production", average: int, summary: dict = None) -> 
 def slack_template(prod: "Production", average: int, summary: dict = None) -> dict:
     """Slack block type message."""
 
+    last_hour = "Last Hour"
+    if DISPLAY_HOUR_COUNT == 1:
+        last_hour += f"  [ {prod.phour_count} ]"
+
     if not summary:
         # Hourly block
         block = {
@@ -129,7 +139,7 @@ def slack_template(prod: "Production", average: int, summary: dict = None) -> di
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Last Hour  [ {prod.phour_count} ]env\s\n*{prod.phour}* _pairs_",
+                        "text": f"{last_hour}\n*{prod.phour}* _pairs_",
                     },
                 },
                 {
@@ -201,6 +211,10 @@ def slack_template(prod: "Production", average: int, summary: dict = None) -> di
 def google_template(prod: "Production", average: int, summary: dict = None) -> dict:
     """Google card type message."""
 
+    last_hour = "Last Hour"
+    if DISPLAY_HOUR_COUNT == 1:
+        last_hour += f"  [ {prod.phour_count} ]"
+
     card = {
         "text": f"{prod.achieved} pairs | {prod.fg} cs",
         "cards": [
@@ -210,7 +224,7 @@ def google_template(prod: "Production", average: int, summary: dict = None) -> d
                         "widgets": [
                             {
                                 "keyValue": {
-                                    "topLabel": f"Last hour  [ {prod.phour_count} ]",
+                                    "topLabel": last_hour,
                                     "content": f"{prod.phour} pairs",
                                 }
                             },
@@ -246,7 +260,13 @@ def google_template(prod: "Production", average: int, summary: dict = None) -> d
 
 
 def slack_api_template(prod: "Production", average: int, summary: dict = None) -> dict:
-    """Slack block type message."""
+    """Slack block type message.
+
+    Summary is passing as a key-value that can be used to reply in thread by api.
+    """
+    last_hour = "Last Hour"
+    if DISPLAY_HOUR_COUNT == 1:
+        last_hour += f"  [ {prod.phour_count} ]"
 
     if not summary:
         # Hourly block
@@ -264,7 +284,7 @@ def slack_api_template(prod: "Production", average: int, summary: dict = None) -
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"Last Hour\n*{prod.phour}* _pairs_",
+                        "text": f"{last_hour}\n*{prod.phour}* _pairs_",
                     },
                 },
                 {
